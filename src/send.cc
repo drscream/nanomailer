@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/syslog.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -40,6 +41,7 @@
 #include "list.h"
 #include "selfpipe.h"
 #include "setenv.h"
+#include "cli++/cli++.h"
 
 const char* cli_program = "nullmailer-send";
 
@@ -47,9 +49,24 @@ selfpipe selfpipe;
 
 typedef list<mystring> slist;
 
-#define fail(MSG) do { fout << MSG << endl; return false; } while(0)
-#define fail2(MSG1,MSG2) do{ fout << MSG1 << MSG2 << endl; return false; }while(0)
-#define fail_sys(MSG) do{ fout << MSG << strerror(errno) << endl; return false; }while(0)
+static int use_syslog = 0;
+static int daemonize  = 0;
+
+const char* cli_program     = "nullmailer-send";
+const char* cli_help_prefix = "nullmailer daemon\n";
+const char* cli_help_suffix = "";
+const char* cli_args_usage  = "";
+const int cli_args_min = 0;
+const int cli_args_max = 0;
+cli_option cli_options[] = {
+  { 'd', "daemon", cli_option::flag, 1, &daemonize,  "daemonize , implies --syslog", 0 },
+  { 's', "syslog", cli_option::flag, 1, &use_syslog, "use syslog", 0 },
+  { 0, 0, cli_option::flag, 0, 0, 0, 0 }
+};
+
+#define fail(MSG) do { if (use_syslog) syslog(LOG_ERR, "%s", MSG); if (!daemonize) ferr << MSG << endl; return false; } while (0)
+#define fail2(MSG1,MSG2) do { if (use_syslog) syslog(LOG_ERR, "%s %s", MSG1, MSG2); if (!daemonize) fout << MSG1 << MSG2 << endl; return false; } while (0)
+#define fail_sys(MSG) do { if (use_syslog) syslog(LOG_ERR, "%s %s", MSG, strerror(errno)); if (!daemonize) ferr << MSG << strerror(errno) << endl; return false; } while (0)
 
 struct remote
 {
@@ -85,11 +102,18 @@ remote::~remote() { }
 
 void remote::exec(int fd)
 {
-  if(close(0) == -1 || dup2(fd, 0) == -1 || close(fd) == -1)
+  if (!daemonize && close(STDIN_FILENO) < 0)
     return;
-  const char* args[3+options.count()];
+  if (fd != STDIN_FILENO)
+    if (dup2(fd, STDIN_FILENO) < 0 || close(fd) < 0)
+      return;
+  const char* args[5+options.count()];
   unsigned i = 0;
   args[i++] = program.c_str();
+  if (daemonize)
+    args[i++] = "-d";
+  if (use_syslog)
+    args[i++] = "-s";
   for(slist::const_iter opt(options); opt; opt++)
     args[i++] = strdup((*opt).c_str());
   args[i++] = host.c_str();
@@ -177,7 +201,10 @@ void catch_alrm(int)
 bool load_files()
 {
   reload_files = false;
-  fout << "Rescanning queue." << endl;
+  if (use_syslog)
+    syslog(LOG_INFO, "Rescanning queue.");
+  if (!daemonize)
+    fout << "Rescanning queue." << endl;
   DIR* dir = opendir(".");
   if(!dir)
     fail_sys("Cannot open queue directory: ");
@@ -222,7 +249,10 @@ bool catchsender(pid_t pid)
       if(status)
 	fail2("Sending failed: ", errorstr(status));
       else {
-	fout << "Sent file." << endl;
+        if (use_syslog)
+          syslog(LOG_INFO, "Sent file.");
+        if (!daemonize)
+             fout << "Sent file." << endl;
 	return true;
       }
     }
@@ -235,9 +265,20 @@ bool send_one(mystring filename, remote& remote)
 {
   int fd = open(filename.c_str(), O_RDONLY);
   if(fd == -1) {
-    fout << "Can't open file '" << filename << "'" << endl;
+    if (use_syslog)
+      syslog(LOG_ERR, "Can't open file '%s'", filename.c_str());
+    if (!daemonize)
+      fout << "Can't open file '" << filename << "'" << endl;
     return false;
   }
+  if (use_syslog)
+     syslog(LOG_INFO, "Starting delivery: protocol: %s host: %s file: %s",
+      remote.proto.c_str(), remote.host.c_str(), filename.c_str());
+  if (!daemonize)
+  if (use_syslog)
+    syslog(LOG_INFO, "Starting delivery, %d message(s) in queue.", files.count());
+  if (!daemonize)
+    fout << "Starting delivery: protocol: " << remote.proto
   const mystring program = PROTOCOL_DIR + remote.proto;
   fout << "Starting delivery: protocol: " << remote.proto
        << " host: " << remote.host
@@ -278,7 +319,10 @@ bool send_all()
 	file++;
     }
   }
-  fout << "Delivery complete, "
+  if (use_syslog)
+    syslog(LOG_INFO, "Delivery complete, %d message(s) remain.", files.count());
+  if (!daemonize)
+    fout << "Delivery complete, "
        << itoa(files.count()) << " message(s) remain." << endl;
   return true;
 }
@@ -330,7 +374,10 @@ bool do_select()
 
   int s = select(trigger+1, &readfds, 0, 0, &timeout);
   if(s == 1) {
-    fout << "Trigger pulled." << endl;
+    if (use_syslog)
+      syslog(LOG_INFO, "Trigger pulled.");
+    if (!daemonize)
+      fout << "Trigger pulled." << endl;
     read_trigger();
     reload_files = true;
     pausetime = minpause;
@@ -344,8 +391,14 @@ bool do_select()
   return true;
 }
 
-int main(int, char*[])
+int cli_main(int, char*[])
 {
+  pid_t pid;
+
+  if (daemonize)
+    use_syslog = 1;
+  if (use_syslog)
+    openlog("nullmailer", LOG_CONS | LOG_PID, LOG_MAIL);
   read_hostnames();
 
   if(!selfpipe) {
@@ -354,13 +407,34 @@ int main(int, char*[])
   }
   selfpipe.catchsig(SIGCHLD);
   
-  if(!open_trigger())
-    return 1;
-  if(chdir(QUEUE_MSG_DIR) == -1) {
-    fout << "Could not chdir to queue message directory." << endl;
+  if(!open_trigger()) {
+    if (use_syslog)
+      syslog(LOG_CRIT, "Could not open trigger.");
+    if (!daemonize)
+      ferr << "Could not open trigger." << endl;
     return 1;
   }
-  
+  if(chdir(QUEUE_MSG_DIR) == -1) {
+    fout << "Could not chdir to queue message directory." << endl;
+    if (use_syslog)
+      syslog(LOG_CRIT, "Could not chdir to queue message directory.");
+    if (!daemonize)
+      ferr << "Could not chdir to queue message directory." << endl;
+    return 1;
+  }
+
+  if (daemonize) {
+    if ((pid = fork()) < 0) {
+      syslog(LOG_CRIT, "Could not fork.");
+      return 1;
+    }
+    if (pid)
+      return 0;
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+  }
+
   signal(SIGALRM, catch_alrm);
   signal(SIGHUP, SIG_IGN);
   load_config();

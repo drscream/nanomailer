@@ -22,10 +22,14 @@
 #include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/syslog.h>
 #include "connect.h"
 #include "errcodes.h"
 #include "protocol.h"
 #include "cli++.h"
+
+static int use_syslog = 0;
+static int daemonize  = 0;
 
 const char* user = 0;
 const char* pass = 0;
@@ -44,6 +48,8 @@ cli_option cli_options[] = {
     "Set the user name for authentication", 0 },
   { 0, "pass", cli_option::string, 0, &pass,
     "Set the password for authentication", 0 },
+  { 'd', "daemon", cli_option::flag, 1, &daemonize,  "use syslog exclusively ", 0 },
+  { 's', "syslog", cli_option::flag, 1, &use_syslog, "use syslog additionally", 0 },
   { 0, "auth-login", cli_option::flag, AUTH_LOGIN, &auth_method,
     "Use AUTH LOGIN instead of auto-detecting in SMTP", 0 },
 #ifdef HAVE_TLS
@@ -67,13 +73,19 @@ cli_option cli_options[] = {
 
 void protocol_fail(int e, const char* msg)
 {
-  ferr << cli_program << ": Failed: " << msg << endl;
+  if (use_syslog)
+    syslog(LOG_ERR, "%s: Failed: %s", cli_program, msg);
+  if (!daemonize)
+    ferr << cli_program << ": Failed: " << msg << endl;
   exit(e);
 }
 
 void protocol_succ(const char* msg)
 {
-  ferr << cli_program << ": Succeeded: " << msg << endl;
+  if (use_syslog)
+    syslog(LOG_INFO, "%s: Succeeded: %s", cli_program, msg);
+  if (!daemonize)
+    ferr << cli_program << ": Succeeded: " << msg << endl;
   exit(0);
 }
 
@@ -93,6 +105,10 @@ static void plain_send(fdibuf& in, int fd)
 
 int cli_main(int, char* argv[])
 {
+  if (daemonize)
+    use_syslog = 1;
+  if (use_syslog)
+    openlog("nullmailer", LOG_CONS | LOG_PID, LOG_MAIL);
   const char* remote = argv[0];
   if (port == 0)
     port = use_ssl ? default_ssl_port : default_port;
