@@ -95,14 +95,14 @@ For example, to connect to port 2525 on your SMTP smart host,
 which also requires SMTP authentication, use:
 
 .EX
-    smarthost.dom smtp --port=2525 --user=user --pass=pass
+    smarthost.dom smtp \-\-port=2525 \-\-user=user \-\-pass=pass
 .EE
 
 If your smarthost requires LOGIN authentication instead of the default
 PLAIN method, use:
 
 .EX
-    smarthost.dom smtp --port=2525 --auth-login --user=user --pass=pass
+    smarthost.dom smtp \-\-port=2525 \-\-auth-login \-\-user=user \-\-pass=pass
 .EE
 
 Blank lines and lines starting with a pound are ignored. When called with
@@ -125,16 +125,16 @@ If this is set to
 will wait forever for messages to complete sending.
 .SH FILES
 .TP
-.B /var/nullmailer/queue
+.B /var/spool/nullmailer/queue
 The message queue.
 .TP
-.B /var/nullmailer/trigger
+.B /var/spool/nullmailer/trigger
 A trigger file to cause immediate delivery.
 .TP
-.B /usr/local/etc/nullmailer
+.B /etc/nullmailer
 The configuration directory.
 .TP
-.B /usr/local/libexec/nullmailer
+.B /usr/lib/nullmailer
 The protocol program directory.
 .SH SEE ALSO
 nullmailer-queue(8),

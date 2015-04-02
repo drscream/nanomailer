@@ -22,9 +22,9 @@ message to stdandard output.
 .TP
 .B adminaddr
 If this file is not empty, all recipients to users at either
-"localhost" (the literal string) or the canonical host name (from the
-.I me
-control file) are remapped to this address.
+"localhost" (the literal string) or the canonical host name (from
+.IR /etc/mailname )
+are remapped to this address.
 This is provided to allow local daemons to be able to send email to
 "somebody@localhost" and have it go somewhere sensible instead of
 being bounced by your relay host. To send to multiple addresses, put
@@ -35,13 +35,13 @@ If this file is not empty, its contents will override the envelope
 sender on all messages.
 .SH OTHER FILES
 .TP
-.B /var/nullmailer/queue
+.B /var/spool/nullmailer/queue
 The directory into which the completed messages are moved.
 .TP
-.B /var/nullmailer/tmp
+.B /var/spool/nullmailer/tmp
 The directory in which messages are formed temporarily.
 .TP
-.B /var/nullmailer/trigger
+.B /var/spool/nullmailer/trigger
 A pipe used to trigger
 .BR nullmailer-send
 to immediately start sending the message from the queue.
