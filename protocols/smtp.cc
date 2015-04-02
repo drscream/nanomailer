@@ -53,6 +53,7 @@ public:
   void auth_plain(void);
   void send_data(fdibuf& msg);
   void send_envelope(fdibuf& msg);
+  void send_quit();
   void send(fdibuf& msg);
 };
 
@@ -204,10 +205,16 @@ void smtp::send_data(fdibuf& msg)
   protocol_succ(tmp.c_str());
 }
 
+void smtp::send_quit()
+{
+  docmd("QUIT", 200);
+}
+
 void smtp::send(fdibuf& msg)
 {
   send_envelope(msg);
   send_data(msg);
+  send_quit();
 }
 
 void protocol_prep(fdibuf&)
