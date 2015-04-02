@@ -87,8 +87,6 @@ bool validate_addr(mystring& addr, bool recipient)
     addr = adminaddr;
   else if (!recipient && !!allmailfrom)
     addr = allmailfrom;
-  else if(hostname.find_first('.') < 0)
-    return false;
   return true;
 }
 

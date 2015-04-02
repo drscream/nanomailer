@@ -33,12 +33,14 @@ void read_hostnames()
 {
   int nome;
   nome = 0;
-  if (!config_read("me", me)) {
+  // introduced as bufix for #120660, #157259, #158412 in 1.00RC5-17;
+  // still there since it's more appropriate for Debian systems
+  if (!config_read("../mailname", me)) {
     nome = 1;
     me = "me";
   }
-  if (!config_read("defaultdomain", defaultdomain))
-    defaultdomain = nome ? "defaultdomain" : me.c_str();
+  // allow defaultdomain to be empty for Debian
+  config_read("defaultdomain", defaultdomain);
   if (!config_read("defaulthost", defaulthost))
     defaulthost = nome ? "defaulthost" : me.c_str();
   canonicalize(defaulthost);
