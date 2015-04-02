@@ -110,6 +110,7 @@ void read_config()
 ///////////////////////////////////////////////////////////////////////////////
 static slist recipients;
 static mystring sender;
+static bool use_header_sender = true;
 static bool use_header_recips = true;
 
 void parse_recips(const mystring& list)
@@ -136,6 +137,9 @@ bool parse_recip_arg(mystring str)
 bool parse_sender(const mystring& list)
 {
   int end = list.find_first('\n');
+  if(end == -1) {
+    return true;	// null sender
+  }
   if(end > 0 && list.find_first('\n', end+1) < 0) {
     sender = list.sub(0, end);
     return true;
@@ -175,7 +179,6 @@ struct header_field
 	return true;
       if(is_resent) {
 	if(!header_is_resent) {
-	  sender = "";
 	  if(use_header_recips)
 	    recipients.empty();
 	}
@@ -197,8 +200,10 @@ struct header_field
 	      parse_recips(list);
 	  }
 	  else if(is_sender) {
-	    if(is_resent == header_is_resent && !sender)
+	    if(use_header_sender) {	// There is no Resent-Return-Path
 	      parse_sender(list);
+	      use_header_sender = 0;
+	    }
 	  }
 	}
       }
@@ -296,7 +301,7 @@ void setup_from()
   if(!shost) shost = host;
   canonicalize(shost);
   
-  if(!sender)
+  if(use_header_sender && !sender)
     sender = suser + "@" + shost;
 }
 
@@ -555,6 +560,7 @@ bool parse_args(int argc, char* argv[])
       ferr << "nullmailer-inject: Invalid sender address: " << o_from << endl;
       return false;
     }
+    use_header_sender = false;
   }
   use_header_recips = (use_recips != use_args);
   if(use_recips == use_header)

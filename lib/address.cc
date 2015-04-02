@@ -523,6 +523,17 @@ RULE(route_addr)
   RETURN(node, "<" + r2.str + ">" + comment, "", r2.addr);
 }
 
+RULE(null_addr)
+{
+  ENTER("LABRACKET RABRACKET");
+  mystring comment;
+  node = skipcomment(node, comment);
+  MATCHTOKEN(LABRACKET);
+  node = skipcomment(node, comment);
+  MATCHTOKEN(RABRACKET);
+  RETURN(node, "<>" + comment, "", "");
+}
+
 RULE(phrase)
 {
   ENTER("word *(word / PERIOD / CFWS)");
@@ -660,7 +671,8 @@ bool parse_addresses(mystring& line, mystring& list)
   anode* tokenlist = tokenize(line.c_str());
   if(!tokenlist)
     return false;
-  result r = match_addresses(tokenlist);
+  result r = match_null_addr(tokenlist);
+  if (!r) r = match_addresses(tokenlist);
   del_tokens(tokenlist);
   if(r) {
     line = r.str;
