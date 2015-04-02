@@ -27,7 +27,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifdef __sun
+#include <syslog.h>
+#else
 #include <sys/syslog.h>
+#endif
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>

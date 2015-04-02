@@ -22,7 +22,11 @@
 #include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __sun
+#include <syslog.h>
+#else
 #include <sys/syslog.h>
+#endif
 #include "connect.h"
 #include "errcodes.h"
 #include "protocol.h"
