@@ -35,13 +35,13 @@ If this file is not empty, its contents will override the envelope
 sender on all messages.
 .SH OTHER FILES
 .TP
-.B /var/spool/nullmailer/queue
+.B @VARBASE@/spool/nullmailer/queue
 The directory into which the completed messages are moved.
 .TP
-.B /var/spool/nullmailer/tmp
+.B @VARBASE@/spool/nullmailer/tmp
 The directory in which messages are formed temporarily.
 .TP
-.B /var/spool/nullmailer/trigger
+.B @VARBASE@/spool/nullmailer/trigger
 A pipe used to trigger
 .BR nullmailer-send
 to immediately start sending the message from the queue.
