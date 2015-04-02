@@ -28,7 +28,11 @@
 #include <netinet/in.h>
 #include "errcodes.h"
 #include "connect.h"
+#ifdef HAVE_GETADDRINFO
+#include "lib/itoa.h"
+#endif
 
+#ifndef HAVE_GETADDRINFO
 static int sethostbyname(const mystring& hostname, struct sockaddr_in& sa)
 {
   struct hostent *he = gethostbyname(hostname.c_str());
@@ -44,13 +48,48 @@ static int sethostbyname(const mystring& hostname, struct sockaddr_in& sa)
   memcpy(&sa.sin_addr, he->h_addr, he->h_length);
   return 0;
 }
+#endif
 
 int tcpconnect(const mystring& hostname, int port)
 {
+#ifdef HAVE_GETADDRINFO
+  struct addrinfo req, *res, *orig_res;
+  const char *service = itoa(port, 6);
+
+  memset(&req, 0, sizeof(req));
+  req.ai_flags = AI_NUMERICSERV;
+  req.ai_socktype = SOCK_STREAM;
+  int e = getaddrinfo(hostname.c_str(), service, &req, &res);
+#else
   struct sockaddr_in sa;
   memset(&sa, 0, sizeof(sa));
   int e = sethostbyname(hostname, sa);
+#endif
   if(e) return e;
+#ifdef HAVE_GETADDRINFO
+  int s = -1;
+  orig_res = res;
+
+  for (; res; res = res->ai_next ) {
+    s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+    if(s < 0)
+	continue;
+
+    if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
+    	s = -1;
+	continue;
+    }
+
+    /* sucessful connection */
+    break;
+  }
+
+  freeaddrinfo(orig_res);
+
+  if(s < 0)
+    return -ERR_CONN_FAILED;
+#else
   sa.sin_family = AF_INET;
   sa.sin_port = htons(port);
   int s = socket(PF_INET, SOCK_STREAM, 0);
@@ -64,5 +103,6 @@ int tcpconnect(const mystring& hostname, int port)
     default: return -ERR_CONN_FAILED;
     }
   }
+#endif
   return s;
 }
