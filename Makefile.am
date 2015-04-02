@@ -4,6 +4,9 @@ sysconfdir = @sysconfdir@/nullmailer
 EXTRA_DIST = BUGS HOWTO INSTALL TODO scripts/*
 SUBDIRS = doc lib protocols src test
 
+NULLMAILER_USER ?= nullmail
+NULLMAILER_GROUP ?= nullmail
+
 install-data-local:
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/queue
@@ -16,10 +19,10 @@ install-data-local:
 	chmod 600 $(DESTDIR)$(localstatedir)/trigger
 
 install-root:
-	chown nullmail $(DESTDIR)$(localstatedir)/*
-	chown nullmail $(DESTDIR)$(sbindir)/nullmailer-queue
+	chown ${NULLMAILER_USER}:${NULLMAILER_GROUP} $(DESTDIR)$(localstatedir)/*
+	chown ${NULLMAILER_USER}:${NULLMAILER_GROUP} $(DESTDIR)$(sbindir)/nullmailer-queue
 	chmod u+s $(DESTDIR)$(sbindir)/nullmailer-queue
-	chown nullmail $(DESTDIR)$(bindir)/mailq
+	chown ${NULLMAILER_USER}:${NULLMAILER_GROUP} $(DESTDIR)$(bindir)/mailq
 	chmod u+s $(DESTDIR)$(bindir)/mailq
 
 dist-hook:
