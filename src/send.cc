@@ -43,8 +43,6 @@
 #include "setenv.h"
 #include "cli++/cli++.h"
 
-const char* cli_program = "nullmailer-send";
-
 selfpipe selfpipe;
 
 typedef list<mystring> slist;
@@ -278,7 +276,7 @@ bool send_one(mystring filename, remote& remote)
   if (use_syslog)
     syslog(LOG_INFO, "Starting delivery, %d message(s) in queue.", files.count());
   if (!daemonize)
-    fout << "Starting delivery: protocol: " << remote.proto
+    fout << "Starting delivery: protocol: " << remote.proto;
   const mystring program = PROTOCOL_DIR + remote.proto;
   fout << "Starting delivery: protocol: " << remote.proto
        << " host: " << remote.host
